@@ -1,0 +1,12 @@
+{
+  "name": "asteroid",
+  "description": "Entity-component-system (ECS) and collection proxying for real-time games.",
+  "homepage": "http://asteroid.pw/",
+  "author": "Jasmine Kent <jk@codeartemis.com>",
+  "version": "0.0.1",
+  "git": "",
+  "packages": {
+    "coffeescript": {},
+    "underscore": {}
+  }
+}
