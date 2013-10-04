@@ -3,9 +3,11 @@ Package.describe({
 });
 
 Package.on_use(function (api, where) {
-  api.use('coffeescript', 'server');
-  api.add_files('server_entity.coffee', 'server');
-  api.export('Asteroid', 'server');
+  api.use('coffeescript');
+  api.add_files('component.coffee');
+  api.add_files('entity_server.coffee', 'server');
+  api.add_files('entity_client.coffee', 'client');
+  api.export('Asteroid');
 });
 
 // Package.on_test(function (api) {
