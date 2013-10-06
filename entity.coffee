@@ -2,10 +2,6 @@
 Asteroid =
   entities: []
 
-class EntitySystemAPI
-  constructor: (@ent) ->
-  componentData: (name) -> @ent[name]
-
 class Asteroid.EntitySystem
   constructor: (@name) ->
     Asteroid.entities.push @
@@ -51,7 +47,7 @@ class Asteroid.EntitySystem
     @ents.push ent
     @entsById[ent._id] = ent
     for own field of ent
-      @components[field]?.added?.call ent[field], new EntitySystemAPI(ent), initParams?[field]
+      @components[field]?.added?.call ent[field], ent, initParams?[field]
     sub.added @name, ent._id, ent for sub in @subs
     return
 
@@ -59,7 +55,7 @@ class Asteroid.EntitySystem
     ent = @entsById[_id]
     return unless ent
     for own field of ent
-      @components[field]?.removed?.call ent[field], new EntitySystemAPI(ent)
+      @components[field]?.removed?.call ent[field], ent
     @ents = _.filter @ents, (e) -> e._id isnt _id
     delete @entsById[_id]
     sub.removed @name, _id for sub in @subs
@@ -72,7 +68,7 @@ class Asteroid.EntitySystem
 
     for ent in ents
       for own field of ent
-        components[field]?.advance?.call ent[field], new EntitySystemAPI(ent), delta
+        components[field]?.advance?.call ent[field], ent, delta
 
     # for ent in ents
     #   for comp in ent.components
@@ -118,7 +114,7 @@ class Asteroid.EntitySystem
   registerComponent: (name, methods) ->
     @components[name] = methods
     for ent in @ents when ent[name]?
-      methods.added?.call ent[name], new EntitySystemAPI(ent)
+      methods.added?.call ent[name], ent
     return
 
   setCollection: (@collection) ->
@@ -141,13 +137,15 @@ class Asteroid.EntitySystem
         @_removeEnt _id
     return
 
-  addEntity: (initParams) ->
+  addEntity: (initParams = {}) ->
     components = Object.keys initParams
     components = _.union components, @defaultComponents
     ent =
       _id: Random.id()
     for field in components
       ent[field] = {}
+    for field in components
+      @components[field]?.created?.call ent[field], ent, initParams[field]
     @_addEnt ent, initParams
     @collection.insert ent
     ent

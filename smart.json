@@ -3,7 +3,7 @@
   "description": "Entity-component-system (ECS) and collection proxying for real-time games.",
   "homepage": "http://asteroid.pw/",
   "author": "Jasmine Kent (http://twitter.com/jareiko)",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "git": "https://github.com/CodeArtemis/meteor-asteroid.git",
   "packages": {
     "coffeescript": {},

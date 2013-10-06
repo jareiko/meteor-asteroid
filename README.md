@@ -85,18 +85,19 @@ Currently, a 0.2s advance interval will be set up automatically on the server.
 Register a component called `name`. `handlers` is an object which may have
 some or all of the following methods:
 
-    created: function(ent) {}
-    removed: function(ent) {}
-    advance: function(ent, delta) {}
-    publish: function(ent) {}
+    created: function(ent, params) {}  # Called on creation by createEntity().
+    added: function(ent) {}            # Called after creation, or after loading from the DB.
+    removed: function(ent) {}          # Called just before this entity is removed.
+    advance: function(ent, delta) {}   # Called to perform regular update logic.
+    publish: function(ent) {}          # Called to determine what data to send to the client.
 
 These methods are called with the component field bound as `this`
 and the entire entity document passed as `ent`.
 
-`publish` is called after each advance cycle on the server.
+`publish` is called after each `advance` cycle on the server.
 It may return an object representing the component's state which will be
 published to the client.
-If it returns a falsy value then no action is taken.
+If it returns a falsy value then nothing is sent for that component during that frame.
 
     es.setCollection(collection);
 
@@ -104,11 +105,13 @@ If it returns a falsy value then no action is taken.
 This should be called after registering all components.
 It will load all documents with `find()` and call `added()` on components as necessary.
 
-    es.addEntity(components...);
+    es.createEntity(componentParamsMap);
 
-Create a new entity with the named `components`.
-For each component, an empty object with the same name will be added to the entity,
-and the component's `added()` method will be called.
+Create a new entity. For each key in `componentParamsMap`, find the component with a
+matching name and call `created()`, passing the value as `params`.
+After all components have been `created()`, each component's `added()` method will be called.
+
+On subsequent restarts when the entity is loaded from the DB, only `added()` will be called.
 
 Currently, a default component `transform` is also added, which sets `pos: [ 0, 0, 0 ]`
 by default, and publishes and persists this value.
