@@ -14,6 +14,7 @@ Coming soon:
 
 * Front-end bindings for Three.js & Pixi.js
 * Fine-grain publishing control, so we don't send all data to all clients
+* JavaScript instead of CoffeeScript
 
 This is very early code.
 Every aspect is open to discussion!
@@ -62,8 +63,8 @@ Quick Start
 
     myES.createEntity({ robot: { name: "R2-D2" } });
 
-Docs
-----
+Details
+-------
 
     new Asteroid.EntitySystem(name);
 
