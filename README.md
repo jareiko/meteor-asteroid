@@ -13,10 +13,10 @@ with collection proxying.
 Coming soon:
 
 * Front-end bindings for Three.js & Pixi.js
-* Fine-grain publishing control, for example visible sets
+* Fine-grain publishing control, so we don't send all data to all clients
 
-This is very early code, subject to change.
-Everything is open to discussion!
+This is very early code.
+Every aspect is open to discussion!
 
 Install
 -------
@@ -49,15 +49,18 @@ Quick Start
     myES = new Asteroid.EntitySystem("ents");
 
     myES.registerComponent("robot", {
-      advance: function(delta) {
-        // Move forward, exterminate!
-        this.transform.pos[0] += delta;
+      added: function(ent, params) {
+        if (params) this.name = params.name;
+      },
+      advance: function(ent, delta) {
+        // Move forward!
+        ent.componentData('transform').pos[0] += delta;
       }
     });
 
     myES.setCollection(Ents);
 
-    myES.add("flying", "robot");
+    myES.createEntity({ robot: { name: "R2-D2" } });
 
 Docs
 ----
@@ -81,7 +84,7 @@ Currently, a 0.2s advance interval will be set up automatically on the server.
 Register a component called `name`. `handlers` is an object which may have
 some or all of the following methods:
 
-    added: function(ent) {}
+    created: function(ent) {}
     removed: function(ent) {}
     advance: function(ent, delta) {}
     publish: function(ent) {}

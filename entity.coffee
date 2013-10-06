@@ -2,6 +2,10 @@
 Asteroid =
   entities: []
 
+class EntitySystemAPI
+  constructor: (@ent) ->
+  componentData: (name) -> @ent[name]
+
 class Asteroid.EntitySystem
   constructor: (@name) ->
     Asteroid.entities.push @
@@ -39,14 +43,15 @@ class Asteroid.EntitySystem
     @registerComponent 'transform',
       added: ->
         @pos ?= [ 0, 0, 0 ]
-      publish: -> { @pos }
+        @rot ?= 0
+      publish: -> { @pos, @rot }
 
   _addEnt: (ent, initParams) ->
     throw new Error 'missing _id' unless ent._id
     @ents.push ent
     @entsById[ent._id] = ent
     for own field of ent
-      @components[field]?.added?.call ent[field], ent, initParams?[field]
+      @components[field]?.added?.call ent[field], new EntitySystemAPI(ent), initParams?[field]
     sub.added @name, ent._id, ent for sub in @subs
     return
 
@@ -54,7 +59,7 @@ class Asteroid.EntitySystem
     ent = @entsById[_id]
     return unless ent
     for own field of ent
-      @components[field]?.removed?.call ent[field], ent
+      @components[field]?.removed?.call ent[field], new EntitySystemAPI(ent)
     @ents = _.filter @ents, (e) -> e._id isnt _id
     delete @entsById[_id]
     sub.removed @name, _id for sub in @subs
@@ -67,7 +72,7 @@ class Asteroid.EntitySystem
 
     for ent in ents
       for own field of ent
-        components[field]?.advance?.call ent[field], ent, delta
+        components[field]?.advance?.call ent[field], new EntitySystemAPI(ent), delta
 
     # for ent in ents
     #   for comp in ent.components
@@ -112,8 +117,8 @@ class Asteroid.EntitySystem
 
   registerComponent: (name, methods) ->
     @components[name] = methods
-    for ent in @ents
-      methods.added?.call ent[name], ent if ent[name]?
+    for ent in @ents when ent[name]?
+      methods.added?.call ent[name], new EntitySystemAPI(ent)
     return
 
   setCollection: (@collection) ->
