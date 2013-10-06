@@ -3,8 +3,6 @@ Asteroid =
   entities: []
 
 class Asteroid.EntitySystem
-  components = Asteroid.components
-
   constructor: (@name) ->
     Asteroid.entities.push @
 
@@ -36,62 +34,45 @@ class Asteroid.EntitySystem
           that.subs = _.without that.subs, sub
         return
 
+    @defaultComponents = [ 'transform' ]
+
+    @registerComponent 'transform',
+      added: ->
+        @pos ?= [ 0, 0, 0 ]
+      persist: -> { @pos }
+      publish: -> { @pos }
+
   _addEnt: (ent) ->
     throw new Error 'missing _id' unless ent._id
     @ents.push ent
     @entsById[ent._id] = ent
-    ent.components ?= []
-    for comp in ent.components
-      @components[comp]?.added?.call ent
+    for own field of ent
+      @components[field]?.added?.call ent[field], ent
     sub.added @name, ent._id, ent for sub in @subs
     return
 
   _removeEnt: (_id) ->
     ent = @entsById[_id]
     return unless ent
-    for comp in ent.components
-      @components[comp]?.removed?.call ent
+    for own field of ent
+      @components[field]?.removed?.call ent[field], ent
     @ents = _.filter @ents, (e) -> e._id isnt _id
     delete @entsById[_id]
     sub.removed @name, _id for sub in @subs
     return
 
-  update: (delta) ->
-    # Published fields are sent to clients.
-    publishedFields = [ 'pos', 'components', 'plan' ]
-
-    # Persisted fields are periodically written back to the DB.
-    persistedFields = [ 'pos', 'components' ]
-
+  advance: (delta) ->
     ents = @ents
     subs = @subs
     components = @components
 
-    if Meteor.isServer
-      for ent in ents
-        ent._old_state = JSON.parse JSON.stringify _.pick ent, publishedFields
-
     for ent in ents
-      for comp in ent.components
-        components[comp]?.update?.call ent, delta
+      for own field of ent
+        components[field]?.advance?.call ent[field], ent, delta
 
     # for ent in ents
     #   for comp in ent.components
-    #     components[comp]?.lateUpdate?.call ent, delta
-
-    if Meteor.isServer
-      for ent in ents
-        publish = {}
-        # TODO: Use Object.observe or similar instead of polling?
-        for key, value of ent._old_state
-          publish[key] = ent[key] unless _.isEqual ent._old_state[key], ent[key]
-
-        unless _.isEmpty publish
-          # Workaround: Meteor ignores changes if you don't clone the object.
-          publish = JSON.parse JSON.stringify publish
-          for sub in subs
-            # TODO: Check that this ent is visible to this sub.
-            sub.changed @name, ent._id, publish
+    #     components[comp]?.lateadvance?.call ent, delta
 
     # Clean up any destroyed ents.
     entsSnapshot = _.clone ents
@@ -101,17 +82,39 @@ class Asteroid.EntitySystem
         @collection.remove { _id: ent._id }
 
     if Meteor.isServer
+      for ent in ents
+        # TODO: More sophisticated rate limiting. :)
+        # continue if Math.random() < 0.5
+
+        publish = {}
+        for own field of ent
+          pub = components[field]?.publish?.call ent[field]
+          publish[field] = pub if pub
+
+        unless _.isEmpty publish
+          # TODO: Maintain a cache and perform diffs?
+          # Workaround: Meteor seems to ignore changes unless you clone the object.
+          publish = JSON.parse JSON.stringify publish
+          for sub in subs
+            # TODO: Check that this ent is visible to this sub.
+            sub.changed @name, ent._id, publish
+
+    if Meteor.isServer
       # TODO: Round-robin instead of random.
       # TODO: Ignore unchanged ents.
       ent = Random.choice ents
-      persist = _.pick ent, persistedFields
+      persist = {}
+      for own field of ent
+        pub = components[field]?.persist?.call ent[field]
+        persist[field] = pub if pub
       unless _.isEmpty persist
         @collection.update { _id: ent._id }, { $set: persist }
     return
 
   registerComponent: (name, methods) ->
     @components[name] = methods
-    methods.added?.call ent for ent in @ents
+    for ent in @ents
+      methods.added?.call ent[name], ent if ent[name]?
     return
 
   setCollection: (@collection) ->
@@ -134,20 +137,22 @@ class Asteroid.EntitySystem
         @_removeEnt _id
     return
 
-  add: (components...) ->
+  addEntity: (components...) ->
+    components = _.union components, @defaultComponents
     ent =
       _id: Random.id()
-      components: components
+    for field in components
+      ent[field] = {}
     @_addEnt ent
-    # TODO: Also add immediately to the collection?
+    @collection.insert ent
     ent
 
-Asteroid.update = (delta) ->
+Asteroid.advance = (delta) ->
   for entity in Asteroid.entities
-    entity.update delta
+    entity.advance delta
   return
 
 Meteor.startup ->
   if Meteor.isServer
     delta = 0.2
-    Meteor.setInterval (-> Asteroid.update delta), delta * 1000
+    Meteor.setInterval (-> Asteroid.advance delta), delta * 1000
