@@ -39,15 +39,14 @@ class Asteroid.EntitySystem
     @registerComponent 'transform',
       added: ->
         @pos ?= [ 0, 0, 0 ]
-      persist: -> { @pos }
       publish: -> { @pos }
 
-  _addEnt: (ent) ->
+  _addEnt: (ent, initParams) ->
     throw new Error 'missing _id' unless ent._id
     @ents.push ent
     @entsById[ent._id] = ent
     for own field of ent
-      @components[field]?.added?.call ent[field], ent
+      @components[field]?.added?.call ent[field], ent, initParams?[field]
     sub.added @name, ent._id, ent for sub in @subs
     return
 
@@ -81,6 +80,7 @@ class Asteroid.EntitySystem
         removeEnt ent._id
         @collection.remove { _id: ent._id }
 
+    # Publishing.
     if Meteor.isServer
       for ent in ents
         # TODO: More sophisticated rate limiting. :)
@@ -93,22 +93,21 @@ class Asteroid.EntitySystem
 
         unless _.isEmpty publish
           # TODO: Maintain a cache and perform diffs?
+          # It looks like Meteor is already doing this itself at the field level.
+
           # Workaround: Meteor seems to ignore changes unless you clone the object.
           publish = JSON.parse JSON.stringify publish
+
           for sub in subs
             # TODO: Check that this ent is visible to this sub.
             sub.changed @name, ent._id, publish
 
+    # Persistence.
     if Meteor.isServer
       # TODO: Round-robin instead of random.
       # TODO: Ignore unchanged ents.
       ent = Random.choice ents
-      persist = {}
-      for own field of ent
-        pub = components[field]?.persist?.call ent[field]
-        persist[field] = pub if pub
-      unless _.isEmpty persist
-        @collection.update { _id: ent._id }, { $set: persist }
+      @collection.update { _id: ent._id }, ent
     return
 
   registerComponent: (name, methods) ->
@@ -137,13 +136,14 @@ class Asteroid.EntitySystem
         @_removeEnt _id
     return
 
-  addEntity: (components...) ->
+  addEntity: (initParams) ->
+    components = Object.keys initParams
     components = _.union components, @defaultComponents
     ent =
       _id: Random.id()
     for field in components
       ent[field] = {}
-    @_addEnt ent
+    @_addEnt ent, initParams
     @collection.insert ent
     ent
 

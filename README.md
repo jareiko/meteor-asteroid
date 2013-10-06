@@ -84,16 +84,15 @@ some or all of the following methods:
     added: function(ent) {}
     removed: function(ent) {}
     advance: function(ent, delta) {}
-    persist: function(ent) {}
     publish: function(ent) {}
 
 These methods are called with the component field bound as `this`
 and the entire entity document passed as `ent`.
 
-`persist` and `publish` are called after each advance cycle on the server.
-They may return an object representing state which will be
-persisted to the DB or published to the client.
-If they return a falsy value then no action is taken for that component.
+`publish` is called after each advance cycle on the server.
+It may return an object representing the component's state which will be
+published to the client.
+If it returns a falsy value then no action is taken.
 
     es.setCollection(collection);
 
@@ -126,9 +125,12 @@ For example, this entity:
     }
 
 will have its behavior controlled by the `flying` and `robot` components.
-If components for `transform` and `_id` have not been registered, they will be ignored.
+`transform` is a built-in component which currently just creates a `pos` array.
+Fields that do not correspond to any registered component (such as `_id`) are ignored.
 
 `EntitySystem` runs on both client and server, but the server is authoritative.
+Client-driven changes to entity state, such as controlling a game character,
+should be made via Meteor's RPCs called "methods".
 
 Advance rate can be controlled independently on server and client.
 Typically the client should call es.advance once per frame for smooth animation,
