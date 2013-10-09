@@ -58,6 +58,9 @@ Quick Start
       this.doc.pos[0] += delta;
     }
 
+    Bots.addComponent(Asteroid.Transform);  // A built-in component.
+    Bots.addComponent(BotComponent);
+
     // An EntitySystem will call advance() automatically on the server.
     myES = new Asteroid.EntitySystem();
     myES.addEntityCollection(Bots);
