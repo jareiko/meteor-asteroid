@@ -3,6 +3,8 @@ Asteroid = {}
 
 class Asteroid.Entity
   constructor: (@doc) ->
+    # Don't call this directly. Use EntityCollection.create() instead.
+
     # This array must match the container's @components array for getComponent to work.
     # TODO: Use component names instead?
     @entComps = []
@@ -84,6 +86,13 @@ class Asteroid.EntityCollection
   advance: (delta) ->
     ent.advance delta for _id, ent of @ents
 
+    # Clean up any destroyed ents.
+    # entsSnapshot = _.clone ents
+    # for ent in entsSnapshot
+    #   if ent.destroyed
+    #     removeEnt ent._id
+    #     @collection.remove { _id: ent._id }
+
     # Publish.
     for _id, ent of @ents
       # TODO: Check for actual changes!
@@ -109,6 +118,9 @@ class Asteroid.EntityCollection
     sub.ready()
     @subs.push boundSub
     return
+
+  findById: (_id) ->
+    @ents[_id]
 
 class Asteroid.EntitySystem
   constructor: ->

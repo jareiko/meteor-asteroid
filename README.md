@@ -15,6 +15,7 @@ Coming soon:
 * Front-end bindings for Three.js & Pixi.js
 * Fine-grain publishing control, so we don't send all data to all clients
 * JavaScript instead of CoffeeScript source?
+* [Smart Collections](http://meteorhacks.com/introducing-smart-collections.html)?
 
 This is very early code.
 Every aspect is open to discussion!
@@ -49,8 +50,8 @@ Quick Start
 
     Bots = new Asteroid.EntityCollection(BotDocs);
 
-    function BotComponent(doc) {
-      this.doc = doc;
+    function BotComponent(ent) {
+      this.doc = ent.doc;
     }
 
     BotComponent.prototype.advance = function(delta) {
@@ -65,12 +66,16 @@ Quick Start
     myES = new Asteroid.EntitySystem();
     myES.addEntityCollection(Bots);
 
-    Bots.create();
+    Bots.add(Bots.create());
 
 Details
 -------
 
-### `EntityCollection`
+### Asteroid.Entity
+
+These are constructed by `EntityCollection.create()`.
+
+### Asteroid.EntityCollection
 
     new Asteroid.EntityCollection(name);
 
@@ -84,7 +89,7 @@ You can also use a different name if you prefer.
 Advance `EntityCollection` state by `delta` seconds.
 This should be called once per frame on the client to perform predictive simulation.
 
-Currently, a 0.2s advance interval will be set up automatically on the server.
+When attached to an `EntitySystem`, a 0.1s advance interval will be set up automatically on the server.
 
     entityCollection.addComponent(constructor);
 
@@ -111,7 +116,7 @@ You need to pass a reference to the same constructor function as was passed to
 `addComponent`. In future it may be possible to assign names to components for
 easier access.
 
-### `EntitySystem`
+### Asteroid.EntitySystem
 
     new Asteroid.EntitySystem();
 
