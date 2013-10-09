@@ -14,7 +14,7 @@ Coming soon:
 
 * Front-end bindings for Three.js & Pixi.js
 * Fine-grain publishing control, so we don't send all data to all clients
-* JavaScript instead of CoffeeScript
+* JavaScript instead of CoffeeScript source?
 
 This is very early code.
 Every aspect is open to discussion!
@@ -45,105 +45,103 @@ Install Asteroid:
 Quick Start
 -----------
 
-    Ents = new Meteor.Collection("ents");
+    BotDocs = new Meteor.Collection("bots");
 
-    myES = new Asteroid.EntitySystem("ents");
+    Bots = new Asteroid.EntityCollection(BotDocs);
 
-    myES.registerComponent("robot", {
-      added: function(ent, params) {
-        if (params) this.name = params.name;
-      },
-      advance: function(ent, delta) {
-        // Move forward!
-        ent.componentData('transform').pos[0] += delta;
-      }
-    });
+    function BotComponent(doc) {
+      this.doc = doc;
+    }
 
-    myES.setCollection(Ents);
+    BotComponent.prototype.advance = function(delta) {
+      // Move forward!
+      this.doc.pos[0] += delta;
+    }
 
-    myES.createEntity({ robot: { name: "R2-D2" } });
+    // An EntitySystem will call advance() automatically on the server.
+    myES = new Asteroid.EntitySystem();
+    myES.addEntityCollection(Bots);
+
+    Bots.create();
 
 Details
 -------
 
-    new Asteroid.EntitySystem(name);
+### `EntityCollection`
 
-Creates an `EntitySystem` publishing to the `name` collection on the client.
+    new Asteroid.EntityCollection(name);
+
+Creates an `EntityCollection` publishing to the `name` collection on the client.
 
 This can be the same as the backing collection name, as in the quick start example.
 You can also use a different name if you prefer.
 
-    es.advance(delta);
+    entityCollection.advance(delta);
 
-Advance `EntitySystem` state by `delta` seconds.
+Advance `EntityCollection` state by `delta` seconds.
 This should be called once per frame on the client to perform predictive simulation.
 
 Currently, a 0.2s advance interval will be set up automatically on the server.
 
-    es.registerComponent(name, handlers);
+    entityCollection.addComponent(constructor);
 
-Register a component called `name`. `handlers` is an object which may have
-some or all of the following methods:
+Add a component to this collection. Each document will have a component instance
+created for it via `new constructor()`.
 
-    created: function(ent, params) {}  # Called on creation by createEntity().
-    added: function(ent) {}            # Called after creation, or after loading from the DB.
-    removed: function(ent) {}          # Called just before this entity is removed.
-    advance: function(ent, delta) {}   # Called to perform regular update logic.
-    publish: function(ent) {}          # Called to determine what data to send to the client.
+Components may have the following methods:
 
-These methods are called with the component field bound as `this`
-and the entire entity document passed as `ent`.
+    component.advance(delta);  # Called to perform regular update logic.
+    component.removed();       # Notifies the component that its entity has been destroyed.
 
-`publish` is called after each `advance` cycle on the server.
-It may return an object representing the component's state which will be
-published to the client.
-If it returns a falsy value then nothing is sent for that component during that frame.
+    ec.create();
 
-    es.setCollection(collection);
+Create a new entity and return its document.
 
-`collection` is a Meteor.Collection instance.
-This should be called after registering all components.
-It will load all documents with `find()` and call `added()` on components as necessary.
+In future this may return some kind of Entity type which wraps the document and its
+corresponding component instances.
 
-    es.createEntity(componentParamsMap);
+    ec.getComponent(constructor, _id);
 
-Create a new entity. For each key in `componentParamsMap`, find the component with a
-matching name and call `created()`, passing the value as `params`.
-After all components have been `created()`, each component's `added()` method will be called.
+Return the matching component instance for the entity with the given `_id`.
 
-On subsequent restarts when the entity is loaded from the DB, only `added()` will be called.
+You need to pass a reference to the same constructor function as was passed to
+`addComponent`. In future it may be possible to assign names to components for
+easier access.
 
-Currently, a default component `transform` is also added, which sets `pos: [ 0, 0, 0 ]`
-by default, and publishes and persists this value.
+### `EntitySystem`
+
+    new Asteroid.EntitySystem();
+
+Creates an `EntitySystem`, which manages `EntityCollection`s.
+
+    entitySystem.addEntityCollection(entityCollection);
+
+Attach an `EntityCollection`.
+
+    entitySystem.advance(delta);
+
+Calls `advance` on all attached `EntityCollection`s.
+
+On the server, this will be called automatically every 0.1s.
+This is not yet configurable.
 
 Notes
 -----
 
-An entity's components are determined by its document fields.
-For example, this entity:
+Entities are simulated on both client and server, but the server is authoritative.
 
-    {
-      "_id": "xyz',
-      "transform": {
-        pos: [ 0, 0, 0 ]
-      },
-      "flying": {},
-      "robot": {}
-    }
+Any data that should be persisted to the DB or published to the client should
+be included in the entity document. Components may maintain their own state
+outside of the document, but it will be lost on page reloads or server restarts.
 
-will have its behavior controlled by the `flying` and `robot` components.
-`transform` is a built-in component which currently just creates a `pos` array.
-Fields that do not correspond to any registered component (such as `_id`) are ignored.
-
-`EntitySystem` runs on both client and server, but the server is authoritative.
 Client-driven changes to entity state, such as controlling a game character,
-should be made via Meteor's RPCs called "methods".
+should be made via Meteor [Methods](http://docs.meteor.com/#methods_header).
 
-Advance rate can be controlled independently on server and client.
+Advance rate can be different on server and client.
 Typically the client should call es.advance once per frame for smooth animation,
 while the server will advance at a fixed interval.
 
-`EntitySystem` maintains an in-memory entity cache.
+`EntityCollection` maintains an in-memory entity cache.
 On the server, this data can be persisted back to the database at configurable intervals,
 although currently Asteroid uses a random strategy.
 Entity deletion always results in immediate removal from the database.

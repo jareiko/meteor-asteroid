@@ -5,6 +5,7 @@ Package.describe({
 Package.on_use(function (api, where) {
   api.use('coffeescript');
   api.add_files('entity.coffee');
+  api.add_files('components.coffee');
   api.export('Asteroid');
 });
 

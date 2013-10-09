@@ -1,10 +1,172 @@
 
-Asteroid =
-  entities: []
+Asteroid = {}
+
+# This cache guarantees that object identity will not change, and that
+# references to documents will remain valid for the document's lifetime.
+# It's possible that this is true of .observe() docs, but I can't be sure.
+observeChangesCache = (callbacks) ->
+  docs = []
+  added: (_id, fields) ->
+    doc = { _id }
+    _.extend doc, fields
+    docs[_id] = doc
+    callbacks.added doc
+  changed: (_id, fields) ->
+    doc = _.extend docs[_id], fields
+    # TODO: Pass old doc as second parameter?
+    callbacks.changed doc
+  removed: (_id) ->
+    callbacks.removed docs[_id]
+    delete docs[_id]
+
+###
+Component interface:
+
+new constructor(doc): Component instance attached to entity.
+changed(): Entity document has been changed by underlying data source.
+removed(): Entity has been removed.
+advance(delta): Time has passed.
+
+What should you put in the document? Anything you want persisted or published.
+###
+
+# TODO: Introduce an Entity type which wraps a document and all its component instances.
+
+class Asteroid.EntityCollection
+  constructor: (@collection) ->
+    @docs = {}
+
+    # These are matching arrays.
+    # TODO: Make them objects keyed by component name instead?
+    @components = []
+    @entComps = []
+
+    @subs = []
+
+    # TODO: Pass cursor separately, so that reduced views can be used.
+    cursor = collection.find()
+    # @handle = cursor.observeChanges observeChangesCache { @added, @changed, @removed }
+    @handle = cursor.observe { @added, @changed, @removed }
+    # TODO: Use observeChanges interface instead?
+
+  addComponent: (component) ->
+    name = @components.length
+    @components.push component
+    @entComps.push entComps = {}
+    for id, ent of @docs
+      entComps[id] = new component ent
+    return
+
+  destroy: ->
+    @handle?.stop()
+    @removed _id for _id of @docs
+    return
+
+  added: (doc) =>
+    _id = doc._id
+    @docs[_id] = doc #JSON.parse JSON.stringify doc
+    for name, entComp of @entComps
+      entComp[_id] = new @components[name] doc
+    sub.added _id, doc for sub in @subs
+    return
+
+  changed: (newDoc, oldDoc) =>
+    # Note that oldDoc is currently not provided by observeChangesCache.
+    # On the server, we assume that any DB changes were probably
+    # caused by us at some point in the past, so we ignore them.
+    if Meteor.isClient
+      _id = newDoc._id
+      _.extend @docs[_id], newDoc
+      for name, entComp of @entComps
+        entComp[_id].changed?()
+      # TODO: Publish this change immediately, instead of waiting for advance?
+      # sub.changed _id, doc for sub in @subs
+    return
+
+  removed: (oldDoc) =>
+    _id = oldDoc._id
+    for name, entComp of @entComps
+      entComp[_id].removed? oldDoc
+      delete entComp[_id]
+    sub.removed _id for sub in @subs
+    delete @docs[_id]
+    return
+
+  advance: (delta) ->
+    for name, entComp of @entComps
+      for _id, comp of entComp
+        comp.advance? delta
+
+    # Publish.
+    for sub in @subs
+      for _id, doc of @docs
+        # TODO: Check for actual changes!
+        sub.changed _id, JSON.parse JSON.stringify doc
+
+    # Persist.
+    if Meteor.isServer
+      # TODO: Configurable strategies, eg round-robin.
+      # TODO: Ignore unchanged ents.
+      doc = null
+      count = 0
+      for _id, d of @docs
+        doc = d if Math.random() <= 1 / ++count
+      @collection.update { _id: doc._id }, doc if doc
+    return
+
+  callMethod: (name, params...) ->
+    for name, entComp of @entComps
+      for _id, comp of entComp
+        comp[name]? params...
+    return
+
+  publish: (collection, sub) ->
+    boundSub =
+      added: sub.added.bind sub, collection
+      changed: sub.changed.bind sub, collection
+      removed: sub.removed.bind sub, collection
+    boundSub.added _id, doc for _id, doc of @docs
+    sub.ready()
+    @subs.push boundSub
+    return
+
+  create: ->
+    doc = _id: Random.id()
+    @added doc
+    @collection.insert doc  # TODO: Only on server?
+    doc
+
+  getComponent: (component, _id) ->
+    idx = @components.indexOf component
+    return null if idx is -1
+    @entComps[idx][_id]
 
 class Asteroid.EntitySystem
+  constructor: ->
+    @collections = []
+
+    if Meteor.isServer
+      delta = 0.1
+      Meteor.setInterval (=> @advance delta), delta * 1000
+
+  addEntityCollection: (collection) ->
+    @collections.push collection
+    return
+
+  advance: (delta) ->
+    for collection in @collections
+      collection.advance delta
+    return
+
+  callMethod: (params...) ->
+    for collection in @collections
+      collection.callMethod params...
+    return
+
+###
+class Asteroid.EntitySystemOld
   constructor: (@name) ->
-    Asteroid.entities.push @
+    Asteroid.entSystems.push @
 
     # We maintain an in-memory cache of ents.
     @ents = []
@@ -21,25 +183,25 @@ class Asteroid.EntitySystem
 
     if Meteor.isServer
       # TODO: Move responsibility for publishing outside of this class.
-      that = @
+      entSys = @
       Meteor.publish 'region', (x, y) ->
         sub = @
         console.log "subscribe session: #{sub._session.id} user: #{sub.userId}"
         # TODO: Region limiting.
-        sub.added name, ent._id, ent for ent in that.ents
+        sub.added name, ent._id, ent for ent in entSys.ents
         sub.ready()
-        that.subs.push sub
+        entSys.subs.push sub
         sub.onStop ->
           console.log "unsubscribe session: #{sub._session.id} user: #{sub.userId}"
-          that.subs = _.without that.subs, sub
+          entSys.subs = _.without entSys.subs, sub
         return
 
     @defaultComponents = [ 'transform' ]
 
     @registerComponent 'transform',
-      added: ->
-        @pos ?= [ 0, 0, 0 ]
-        @rot ?= 0
+      created: ->
+        @pos = [ 0, 0, 0 ]
+        @rot = 0
       publish: -> { @pos, @rot }
 
   _addEnt: (ent, initParams) ->
@@ -137,7 +299,7 @@ class Asteroid.EntitySystem
         @_removeEnt _id
     return
 
-  addEntity: (initParams = {}) ->
+  createEntity: (initParams = {}) ->
     components = Object.keys initParams
     components = _.union components, @defaultComponents
     ent =
@@ -150,12 +312,5 @@ class Asteroid.EntitySystem
     @collection.insert ent
     ent
 
-Asteroid.advance = (delta) ->
-  for entity in Asteroid.entities
-    entity.advance delta
-  return
-
-Meteor.startup ->
-  if Meteor.isServer
-    delta = 0.2
-    Meteor.setInterval (-> Asteroid.advance delta), delta * 1000
+  findById: (id) -> @entsById[id]
+###
