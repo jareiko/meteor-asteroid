@@ -1,11 +1,21 @@
 Package.describe({
-  summary: "Entity-component-system (ECS) and collection proxying for real-time games."
+  name: 'asteroid',
+  summary: 'Entity-component-system (ECS) and collection proxying for real-time games.',
+  version: '0.0.7',
+  git: 'https://github.com/jareiko/meteor-asteroid.git'
 });
 
-Package.onUse(function (api, where) {
+Package.onUse(function(api) {
+  api.versionsFrom('1.0');
   api.export('Asteroid');
-  api.add_files('entity.js');
-  api.add_files('entitycollection.js');
-  api.add_files('entitysystem.js');
-  api.add_files('components.js');
+  api.addFiles('entity.js');
+  api.addFiles('entitycollection.js');
+  api.addFiles('entitysystem.js');
+  api.addFiles('components.js');
+});
+
+Package.onTest(function(api) {
+  api.use('tinytest');
+  api.use('asteroid');
+  api.addFiles('asteroid-tests.js');
 });
