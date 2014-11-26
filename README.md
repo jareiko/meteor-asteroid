@@ -14,8 +14,6 @@ Coming soon:
 
 * Front-end bindings for Three.js & Pixi.js
 * Fine-grain publishing control, so we don't send all data to all clients
-* JavaScript instead of CoffeeScript source?
-* [Smart Collections](http://meteorhacks.com/introducing-smart-collections.html)?
 
 This is very early code.
 Every aspect is open to discussion!
@@ -57,7 +55,7 @@ Quick Start
     BotComponent.prototype.advance = function(delta) {
       // Move forward!
       this.doc.pos[0] += delta;
-    }
+    };
 
     Bots.addComponent(Asteroid.Transform);  // A built-in component.
     Bots.addComponent(BotComponent);
@@ -153,3 +151,10 @@ while the server will advance at a fixed interval.
 On the server, this data can be persisted back to the database at configurable intervals,
 although currently Asteroid uses a random strategy.
 Entity deletion always results in immediate removal from the database.
+
+Change log
+----------
+
+### 0.7.0
+
+* Switch to JavaScript instead of CoffeeScript
