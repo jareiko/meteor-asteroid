@@ -95,16 +95,13 @@ EntityCollection.prototype.advance = function(delta) {
 };
 
 EntityCollection.prototype.publish = function(collection, sub) {
-  var boundSub, ent, _id, _ref;
-  boundSub = {
+  var boundSub = {
     added: sub.added.bind(sub, collection),
     changed: sub.changed.bind(sub, collection),
     removed: sub.removed.bind(sub, collection)
   };
-  _ref = this.entities;
-  for (_id in _ref) {
-    ent = _ref[_id];
-    boundSub.added(_id, ent.doc);
+  for (var _id in this.entities) {
+    boundSub.added(_id, this.entities[_id].doc);
   }
   sub.ready();
   this.subs.push(boundSub);
