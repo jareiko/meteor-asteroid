@@ -10,39 +10,28 @@ with collection proxying.
 * Perform logic without updating the database every frame
 * Run the same logic on the client for prediction
 
-Coming soon:
+Future development:
 
 * Front-end bindings for Three.js & Pixi.js
 * Fine-grain publishing control, so we don't send all data to all clients
 
-This is very early code.
-Every aspect is open to discussion!
+This is alpha code.
+Feedback is welcome!
 
 Install
 -------
 
-Install Meteor and [Meteorite](https://github.com/oortcloud/meteorite/) if necessary:
+Install Asteroid:
 
-    $ curl https://install.meteor.com | /bin/sh
-    $ npm install -g meteorite
-
-Create an app:
-
-    $ meteor create myapp
-    $ cd myapp
+    $ meteor add jareiko:asteroid
 
 If you want to use the same collection name for entities on client and server,
 you'll need to remove the `autopublish` and `insecure` packages:
 
     $ meteor remove autopublish insecure
 
-Install Asteroid:
-
-    $ mrt install asteroid
-
-
-Quick Start
------------
+Examples
+--------
 
     BotDocs = new Meteor.Collection("bots");
 

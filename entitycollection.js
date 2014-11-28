@@ -1,28 +1,41 @@
-Asteroid.EntityCollection = function EntityCollection(collection) {
+var EntityCollection =
+    Asteroid.EntityCollection = function EntityCollection(collection) {
   this.collection = collection;
   this.entities = {};
   this.components = [];
   this.subs = [];
   // TODO: Allow customizing the cursor, eg a subset.
   var cursor = collection.find();
+  var entColl = this;
   this.handle = cursor.observeChanges({
-    added: this.added.bind(this),
-    changed: this.changed.bind(this),
-    removed: this.removed.bind(this)
+    added: function(_id, fields) {
+      var doc = _.extend({_id: _id}, fields);
+      var ent = entColl.entities[_id] = entColl.create(doc);
+      entColl.subs.forEach(function(sub) {
+        sub.added(_id, doc);
+      });
+      return ent;
+    },
+    changed: function(_id, fields) {
+      if (Meteor.isClient) {
+        entColl.entities[_id].changed(fields);
+      }
+    },
+    removed: function(_id) {
+      entColl.entities[_id].removed();
+      entColl.subs.forEach(function(sub) {
+        sub.removed(_id);
+      });
+      delete entColl.entities[_id];
+    }
   });
 };
 
 EntityCollection.prototype.addComponent = function(component) {
   this.components.push(component);
-  this.entities.each(function(ent) {
-    ent.entComps.push(new component(ent));
-  });
-};
-
-EntityCollection.prototype.destroy = function() {
-  this.handle.stop();
   for (var _id in this.entities) {
-    this.removed(_id);
+    var ent = this.entities[_id];
+    ent.entComps.push(new component(ent));
   }
 };
 
@@ -33,62 +46,66 @@ EntityCollection.prototype.create = function(doc) {
     };
   }
   var ent = new Asteroid.Entity(doc);
-  this.components.each(function(component) {
+  this.components.forEach(function(component) {
     ent.entComps.push(new component(ent));
-  })
-  return ent;
-};
-
-EntityCollection.prototype.add = function(ent) {
-  this.collection.insert(ent.doc);
-  this.subs.each(function(sub) {
-    sub.added(ent.doc._id, ent.doc);
   });
   return ent;
 };
 
-EntityCollection.prototype.added = function(_id, fields) {
-  var doc = _.extend({_id: _id}, fields);
-  var ent = this.entities[_id] = this.create(doc);
-  this.subs.each(function(sub) {
-    sub.added(_id, doc);
+EntityCollection.prototype.insert = function(doc) {
+  var _id = this.collection.insert(ent.doc);
+  var _id = doc._id || Random.id();
+  if (doc == null) {
+    doc = {
+      _id: Random.id()
+    };
+  }
+  var ent = new Asteroid.Entity(doc);
+  this.components.forEach(function(component) {
+    ent.entComps.push(new component(ent));
   });
   return ent;
 };
 
-EntityCollection.prototype.changed = function(_id, fields) {
-  if (Meteor.isClient) {
-    this.entities[_id].changed(fields);
+EntityCollection.prototype.destroy = function() {
+  this.handle.stop();
+  for (var _id in this.entities) {
+    this.removed(_id);
   }
 };
 
-EntityCollection.prototype.removed = function(_id) {
-  this.entities[_id].removed();
-  this.subs.each(function(sub) {
-    sub.removed(_id);
-  });
-  delete this.entities[_id];
-};
+// EntityCollection.prototype.add = function(ent) {
+//   this.collection.insert(ent.doc);
+//   this.subs.forEach(function(sub) {
+//     sub.added(ent.doc._id, ent.doc);
+//   });
+//   return ent;
+// };
 
 EntityCollection.prototype.advance = function(delta) {
-  for (var _id of this.entities) {
+  for (var _id in this.entities) {
     this.entities[_id].advance(delta);
   }
-  for (var _id of this.entities) {
+  for (var _id in this.entities) {
+    // We need to clone to ensure that the subscription updates.
+    // TODO: Check if this workaround is still needed.
     var cloneDoc = JSON.parse(JSON.stringify(this.entities[_id].doc));
-    this.subs.each(function(sub) {
+    this.subs.forEach(function(sub) {
       sub.changed(_id, cloneDoc);
     });
   }
+
   if (Meteor.isServer) {
-    var ent = null;
+    // Pick an entity at random and persist it back to the database.
+    var entId = null;
     var count = 0;
-    for (var _id of this.entities) {
+    for (var _id in this.entities) {
       if (Math.random() <= 1 / ++count) {
-        ent = e;
+        entId = _id;
       }
     }
-    if (ent) {
+    if (entId) {
+      var ent = this.entities[entId];
       this.collection.update(ent.doc._id, ent.doc);
     }
   }

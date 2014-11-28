@@ -12,12 +12,12 @@ Asteroid.EntitySystem = function EntitySystem() {
   }
 };
 
-EntitySystem.prototype.addEntityCollection = function(collection) {
+Asteroid.EntitySystem.prototype.addEntityCollection = function(collection) {
   this.collections.push(collection);
 };
 
-EntitySystem.prototype.advance = function(delta) {
-  this.collections.each(function(collection) {
+Asteroid.EntitySystem.prototype.advance = function(delta) {
+  this.collections.forEach(function(collection) {
     collection.advance(delta);
   });
 };
