@@ -7,7 +7,8 @@ Tinytest.add('example', function (test) {
 Tinytest.add('simple', function(test) {
   var docs = new Meteor.Collection(null);
   var entColl = new Asteroid.EntityCollection(docs);
-  entColl.add(entColl.create());
+  var id1 = docs.insert({});
+  test.length(_.keys(entColl.entities), 1);
 });
 
 Tinytest.add('getComponent', function(test) {
@@ -16,19 +17,15 @@ Tinytest.add('getComponent', function(test) {
 
   function TestComponent() {}
 
-  var ent1 = entColl.add(entColl.create());
+  var id1 = docs.insert({});
 
-  test.isNull(ent1.getComponent(TestComponent));
+  test.isNull(entColl.getEntityComponent(id1, TestComponent));
 
   entColl.addComponent(TestComponent);
-  var ent2 = entColl.add(entColl.create());
-  console.log(ent1);
-  console.log(ent2);
-  console.log(entColl.entities);
+  var id2 = docs.insert({});
 
-  console.log(ent1.getComponent(TestComponent));
-  test.instanceOf(ent1.getComponent(TestComponent), TestComponent);
-  test.instanceOf(ent2.getComponent(TestComponent), TestComponent);
+  test.instanceOf(entColl.getEntityComponent(id1, TestComponent), TestComponent);
+  test.instanceOf(entColl.getEntityComponent(id2, TestComponent), TestComponent);
 });
 
 // advance the system, check that entity is advanced.
@@ -37,18 +34,15 @@ Tinytest.add('advance', function(test) {
   var entColl = new Asteroid.EntityCollection(docs);
 
   var MockComponent = function MockComponent() {
-    return sinon.mock();
+    this.advance = sinon.spy();
   };
 
   entColl.addComponent(MockComponent);
-  var ent = entColl.add(entColl.create());
+  var id1 = docs.insert({});
 
-  // var mock = ent.getComponent(MockComponent);
-  var mock = ent.entComps[0];
+  entColl.advance(3);
 
-  mock.expect('advance').once();
-
-  entColl.advance(1);
-
-  mock.verify();
+  var mock = entColl.getEntityComponent(id1, MockComponent);
+  test.equal(mock.advance.callCount, 1);
+  test.equal(mock.advance.args[0][0], 3);
 });

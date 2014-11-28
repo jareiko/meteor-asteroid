@@ -1,10 +1,12 @@
 
+Asteroid = {};
+
 var callMethodOnComponents = function(components, method) {
   var args = [].slice.call(arguments, 2) || [];
   for (var _id in components) {
     var comp = components[_id];
     if (typeof comp[method] === 'function') {
-      return comp[method].apply(obj, args);
+      return comp[method].apply(comp, args);
     }
   }
 };
@@ -63,9 +65,15 @@ EntityCollection.prototype.addComponent = function(component) {
 
   // Construct a new component instance for each existing entity.
   for (var _id in this.entities) {
-    var entity = this.entities[id];
+    var entity = this.entities[_id];
     entity[1].push(new component(entity[0]));
-  });
+  }
+};
+
+EntityCollection.prototype.getEntityComponent = function(_id, component) {
+  return _.findWhere(this.entities[_id][1], {
+    constructor: component
+  }) || null;
 };
 
 EntityCollection.prototype.advance = function(delta) {
@@ -82,7 +90,7 @@ EntityCollection.prototype.advance = function(delta) {
     this.subs.forEach(function(sub) {
       sub.changed(_id, cloneDoc);
     });
-  });
+  }
 
   if (Meteor.isServer) {
     this.persistRandomly();
