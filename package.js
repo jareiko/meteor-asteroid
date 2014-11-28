@@ -8,7 +8,6 @@ Package.describe({
 
 Package.onUse(function(api) {
   api.versionsFrom('1.0');
-  api.addFiles('entity.js');
   api.addFiles('entitycollection.js');
   api.addFiles('entitysystem.js');
   api.addFiles('components.js');
