@@ -24,6 +24,7 @@ Tinytest.add('getComponent', function(test) {
   entColl.addComponent(TestComponent);
   var id2 = docs.insert({});
 
+  // Check that component has been added for both old and new documents.
   test.instanceOf(entColl.getEntityComponent(id1, TestComponent), TestComponent);
   test.instanceOf(entColl.getEntityComponent(id2, TestComponent), TestComponent);
 });
@@ -33,9 +34,9 @@ Tinytest.add('advance', function(test) {
   var docs = new Meteor.Collection(null);
   var entColl = new Asteroid.EntityCollection(docs);
 
-  var MockComponent = function MockComponent() {
+  function MockComponent() {
     this.advance = sinon.spy();
-  };
+  }
 
   entColl.addComponent(MockComponent);
   var id1 = docs.insert({});
