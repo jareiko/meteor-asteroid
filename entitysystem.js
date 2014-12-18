@@ -1,14 +1,15 @@
-Asteroid.EntitySystem = function EntitySystem() {
-  var delta;
+Asteroid.EntitySystem = function EntitySystem(fps) {
+  fps = (typeof fps !== 'undefined') ? fps : 60;
   this.collections = [];
 
   // TODO: Make advancing configurable.
   if (Meteor.isServer) {
-    delta = 0.1;
+    //less floating point errors in calculations
+    fps = ( 1000 / (fps * 1000));
     var that = this;
     Meteor.setInterval(function() {
-      that.advance(delta);
-    }, delta * 1000);
+      that.advance(fps);
+    }, fps * 1000);
   }
 };
 
