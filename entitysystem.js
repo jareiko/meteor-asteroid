@@ -7,8 +7,10 @@ Asteroid.EntitySystem = function EntitySystem(fps) {
     //less floating point errors in calculations
     fps = ( 1000 / (fps * 1000));
     var that = this;
+    var d = new Date();
+    var lastTime = d.getTime();
     Meteor.setInterval(function() {
-      that.advance(fps);
+      lastTime = that.advance(lastTime);
     }, fps * 1000);
   }
 };
@@ -17,8 +19,12 @@ Asteroid.EntitySystem.prototype.addEntityCollection = function(collection) {
   this.collections.push(collection);
 };
 
-Asteroid.EntitySystem.prototype.advance = function(delta) {
+Asteroid.EntitySystem.prototype.advance = function(lastTime) {
+  var d = new Date();
+  var thisTime = d.getTime();
+  var delta = (thisTime - lastTime) / 1000;
   this.collections.forEach(function(collection) {
     collection.advance(delta);
   });
+  return thisTime;
 };
